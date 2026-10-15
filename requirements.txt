@@ -1,0 +1,38 @@
+# =========================================================
+# Smart Traffic Violation Detection System – Python dependencies
+# Group 36 | PC122 Project
+# Install with:  pip install -r requirements.txt
+# =========================================================
+
+# --- Web framework ---------------------------------------
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-multipart>=0.0.12    # for file & image uploads
+jinja2>=3.1.4               # HTML dashboard templating
+aiofiles>=24.1.0            # static & capture file serving
+
+# --- Database --------------------------------------------
+sqlalchemy>=2.0.36
+aiosqlite>=0.20.0           # async SQLite driver
+greenlet>=3.1.0             # required by SQLAlchemy async engine
+
+# --- Environment & Validation ----------------------------
+python-dotenv>=1.0.1
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
+email-validator>=2.2.0
+
+# --- Computer Vision & Image Processing ------------------
+opencv-python>=4.10.0.84    # image capture, preprocessing & annotation
+Pillow>=11.0.0              # image utilities
+numpy>=1.26.0               # array operations
+
+# --- OCR / Plate Detection (swap-friendly) --------------
+# easyocr>=1.7.1            # local deep-learning OCR backend
+# pytesseract>=0.3.13       # local Tesseract OCR backend
+# google-cloud-vision>=3.7.2 # cloud OCR backend
+
+# --- HTTP client & Dev / testing -------------------------
+httpx>=0.28.0               # ASGI test client and HTTP utilities
+pytest>=8.3.0
+pytest-asyncio>=0.24.0

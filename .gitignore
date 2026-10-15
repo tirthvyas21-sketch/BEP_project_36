@@ -1,0 +1,69 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+*.so
+*.whl
+.eggs/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.log
+
+# === Virtual Environments ===
+venv/
+.venv/
+env/
+.env/
+
+# === Environment / Secrets ===
+.env
+*.env.local
+*.env.*.local
+secrets/
+credentials/
+
+# === Database ===
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# === OS ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Node (dashboard tooling if added later) ===
+node_modules/
+npm-debug.log*
+
+# === Arduino / PlatformIO / ESP32 ===
+firmware/.pio/
+firmware/.pioenvs/
+firmware/.clangd/
+firmware/build/
+*.d
+*.elf
+*.bin
+*.map
+*.lst
+
+# === Sample data - never commit real images of vehicles/plates ===
+sample_images/real/
+data/exports/

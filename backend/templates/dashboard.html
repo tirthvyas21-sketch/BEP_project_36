@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Traffic Incident Review Dashboard – PC122</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <!-- ===== Navigation Header ===== -->
+  <nav class="navbar">
+    <div class="navbar-left">
+      <span class="navbar-brand">🚦 Smart Traffic Incident Review Dashboard</span>
+      <span class="navbar-subtitle">PC122 Project • Lotus Pond Restricted-Turn Monitor • Human-in-the-Loop Verification</span>
+    </div>
+    <div class="navbar-right">
+      <button id="seed-demo-btn" class="btn btn--outline">🌱 Seed Demo Vehicles</button>
+      <span id="api-status" class="status-pill">Checking API…</span>
+    </div>
+  </nav>
+
+  <main class="container">
+    <!-- ===== KPI Cards ===== -->
+    <section class="cards-row">
+      <div class="card">
+        <h2 class="card-value">{{ total_events }}</h2>
+        <p class="card-label">Total Events</p>
+      </div>
+      <div class="card card--warning">
+        <h2 class="card-value">{{ awaiting_review }}</h2>
+        <p class="card-label">Awaiting Review</p>
+      </div>
+      <div class="card card--alert">
+        <h2 class="card-value">{{ confirmed_violations }}</h2>
+        <p class="card-label">Confirmed Violations</p>
+      </div>
+      <div class="card">
+        <h2 class="card-value">{{ total_vehicles }}</h2>
+        <p class="card-label">Registered Vehicles</p>
+      </div>
+      <div class="card">
+        <h2 class="card-value" style="color: var(--color-success);">Ready</h2>
+        <p class="card-label">ESP32-S3 Pipeline</p>
+      </div>
+    </section>
+
+    <!-- ===== Simulation & Vehicle Registration Grid ===== -->
+    <div class="grid-2col">
+      <!-- Event Simulator -->
+      <section class="section-card">
+        <h3>⚡ Simulate Sensor Event & Image Upload</h3>
+        <p class="help-text">Simulates an ESP32-S3 sensor trigger at the Lotus Pond restricted-turn circle:</p>
+        <form id="simulate-form" enctype="multipart/form-data">
+          <div class="form-group">
+            <label for="image-input">Select Vehicle Frame:</label>
+            <input type="file" id="image-input" name="file" accept="image/jpeg,image/png,image/webp" required />
+          </div>
+          <div class="form-row">
+            <div>
+              <label for="test-plate-input">Benchmark Plate Fallback:</label>
+              <input type="text" id="test-plate-input" placeholder="e.g. GJ01AB1234 (or leave blank for OCR)" />
+            </div>
+            <div>
+              <label for="sensor-data-input">Sensor Readings:</label>
+              <input type="text" id="sensor-data-input" value="Ultrasonic: 28cm | IR: TRIGGERED" />
+            </div>
+          </div>
+          <button type="submit" class="btn btn--primary" id="simulate-btn">Submit Event & Process Frame</button>
+        </form>
+
+        <div id="sim-result-container" class="result-container" style="display: none;">
+          <h4>Pipeline Response:</h4>
+          <pre id="sim-result" class="result-box"></pre>
+          <div id="sim-preview"></div>
+        </div>
+      </section>
+
+      <!-- Register Vehicle -->
+      <section class="section-card">
+        <h3>🚗 Register Campus Student Vehicle</h3>
+        <p class="help-text">Add a student vehicle record for automated database matching:</p>
+        <form id="register-vehicle-form">
+          <div class="form-row">
+            <input type="text" id="reg-sid" placeholder="Student ID (e.g. STU2025001)" required />
+            <input type="text" id="reg-name" placeholder="Student Full Name" required />
+          </div>
+          <div class="form-row">
+            <input type="email" id="reg-email" placeholder="Campus Email" required />
+            <input type="text" id="reg-plate" placeholder="Vehicle Plate (e.g. GJ01AB1234)" required />
+          </div>
+          <div class="form-row">
+            <input type="text" id="reg-dept" placeholder="Department (optional)" />
+            <input type="text" id="reg-phone" placeholder="Phone Number (optional)" />
+          </div>
+          <button type="submit" class="btn btn--secondary">Save Vehicle Record</button>
+        </form>
+        <p id="reg-feedback" class="form-feedback"></p>
+      </section>
+    </div>
+
+    <!-- ===== Events & Review Queue Table ===== -->
+    <section class="section">
+      <div class="section-header">
+        <h3>📋 Traffic Events & Incident Review Queue</h3>
+        <span class="badge badge--info">{{ events_list|length }} events recorded</span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="violations-table">
+          <thead>
+            <tr>
+              <th>Event ID</th>
+              <th>Timestamp & Sensor Info</th>
+              <th>Images</th>
+              <th>Recognized Plate</th>
+              <th>Matched Student</th>
+              <th>Review Status</th>
+              <th>Incident Outcome</th>
+              <th>Reviewer Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for evt in events_list %}
+            <tr>
+              <td><strong style="color: var(--color-accent);">{{ evt.event_id }}</strong></td>
+              <td>
+                <div>{{ evt.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+                <div style="font-size: 0.75rem; color: var(--color-muted);">{{ evt.sensor_data or evt.location }}</div>
+              </td>
+              <td>
+                {% if evt.images %}
+                  <div style="display: flex; gap: 4px; align-items: center;">
+                    <a href="{{ evt.images[0].annotated_path or evt.images[0].image_path }}" target="_blank" class="btn-link">
+                      📷 View Frame ({{ evt.images|length }})
+                    </a>
+                  </div>
+                {% else %}
+                  <span style="color: var(--color-muted); font-size: 0.8rem;">No images</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if evt.violation and evt.violation.confirmed_plate %}
+                  <span class="plate-code">{{ evt.violation.confirmed_plate }}</span>
+                  <div style="font-size: 0.72rem; color: var(--color-success);">Confirmed</div>
+                {% elif evt.violation and evt.violation.recognized_plate %}
+                  <span class="plate-code">{{ evt.violation.recognized_plate }}</span>
+                  <div style="font-size: 0.72rem; color: var(--color-muted);">OCR ({{ "%.0f%%"|format(evt.violation.confidence * 100) if evt.violation.confidence else 'N/A' }})</div>
+                {% else %}
+                  <span style="color: var(--color-muted);">Pending</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if evt.violation and evt.violation.vehicle %}
+                  <div class="student-info">
+                    <span class="student-name">{{ evt.violation.vehicle.student_name }}</span>
+                    <span class="student-meta">{{ evt.violation.vehicle.student_id }} • {{ evt.violation.vehicle.email }}</span>
+                  </div>
+                {% else %}
+                  <span class="badge badge--neutral">Unregistered / Visitor</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if evt.violation %}
+                  {% if evt.violation.review_status.value == 'pending_review' %}
+                    <span class="badge badge--warning">⏳ Pending Review</span>
+                  {% elif evt.violation.review_status.value == 'confirmed' %}
+                    <span class="badge badge--danger">✅ Confirmed</span>
+                  {% elif evt.violation.review_status.value == 'rejected' %}
+                    <span class="badge badge--neutral">❌ Rejected</span>
+                  {% endif %}
+                {% else %}
+                  <span class="badge badge--neutral">{{ evt.status.value }}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if evt.violation and evt.violation.review_status.value == 'confirmed' %}
+                  {% if evt.violation.incident_outcome.value == 'warning' %}
+                    <span class="badge badge--warning">⚠️ 1st: Warning</span>
+                  {% elif evt.violation.incident_outcome.value == 'final_warning' %}
+                    <span class="badge badge--danger">🚨 2nd: Final Warning</span>
+                  {% elif evt.violation.incident_outcome.value == 'fine' %}
+                    <span class="badge badge--fine">💰 3rd: Fine Notice</span>
+                  {% elif evt.violation.incident_outcome.value == 'escalated' %}
+                    <span class="badge badge--escalate">🛡️ 4th+: Escalated</span>
+                  {% else %}
+                    <span class="badge badge--neutral">{{ evt.violation.incident_outcome.value }}</span>
+                  {% endif %}
+                  <div style="font-size: 0.72rem; color: var(--color-muted);">Count: #{{ evt.violation.confirmed_incident_count }}</div>
+                {% elif evt.violation and evt.violation.review_status.value == 'rejected' %}
+                  <span style="color: var(--color-muted); font-size: 0.8rem;">Dismissed</span>
+                {% else %}
+                  <span style="color: var(--color-muted); font-size: 0.8rem;">Awaiting Review</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if evt.violation and evt.violation.review_status.value == 'pending_review' %}
+                  <div style="display: flex; gap: 4px;">
+                    <button class="btn btn--sm btn--primary review-btn"
+                            data-event-id="{{ evt.event_id }}"
+                            data-action="confirm"
+                            data-plate="{{ evt.violation.recognized_plate or '' }}">
+                      Confirm
+                    </button>
+                    <button class="btn btn--sm btn--outline review-btn"
+                            data-event-id="{{ evt.event_id }}"
+                            data-action="reject">
+                      Reject
+                    </button>
+                  </div>
+                {% elif evt.violation and evt.violation.reviewed_by %}
+                  <span style="font-size: 0.75rem; color: var(--color-muted);">By {{ evt.violation.reviewed_by }}</span>
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="8" class="empty-state">No events registered yet. Use the simulator above or upload an event image.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== Two Column: Registered Vehicles & Notifications ===== -->
+    <div class="grid-2col">
+      <!-- Registered Vehicles -->
+      <section class="section-card">
+        <div class="section-header">
+          <h3>🎓 Campus Vehicles Database</h3>
+          <span class="badge badge--info">{{ vehicles_list|length }} vehicles</span>
+        </div>
+        <div class="table-responsive">
+          <table class="violations-table">
+            <thead>
+              <tr>
+                <th>Plate</th>
+                <th>Student</th>
+                <th>Student ID</th>
+                <th>Email</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for v in vehicles_list %}
+              <tr>
+                <td><span class="plate-code">{{ v.plate_number }}</span></td>
+                <td>{{ v.student_name }}</td>
+                <td><strong>{{ v.student_id }}</strong></td>
+                <td>{{ v.email }}</td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="4" class="empty-state">No registered vehicles. Click 'Seed Demo Vehicles' above.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Notification Logs -->
+      <section class="section-card">
+        <div class="section-header">
+          <h3>📬 Dispatched Notification Logs</h3>
+          <span class="badge badge--info">{{ notifs_list|length }} logs</span>
+        </div>
+        <div class="table-responsive">
+          <table class="violations-table">
+            <thead>
+              <tr>
+                <th>Event</th>
+                <th>Recipient</th>
+                <th>Status</th>
+                <th>Preview</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for n in notifs_list %}
+              <tr>
+                <td><strong>{{ n.event.event_id if n.event else n.event_id }}</strong></td>
+                <td>{{ n.recipient }}</td>
+                <td><span class="badge badge--info">{{ n.delivery_status }}</span></td>
+                <td>
+                  {% if n.preview_file %}
+                    <a href="/captures/{{ n.preview_file }}" target="_blank" class="btn-link">View Email</a>
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="4" class="empty-state">No notifications sent yet. Confirm an incident to dispatch.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
